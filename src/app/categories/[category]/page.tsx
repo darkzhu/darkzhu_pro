@@ -11,8 +11,8 @@ type CategoryPageProps = {
   };
 };
 
-export function generateStaticParams() {
-  return getAllCategories().map((category) => ({
+export async function generateStaticParams() {
+  return (await getAllCategories()).map((category) => ({
     category: category.name
   }));
 }
@@ -26,9 +26,9 @@ export function generateMetadata({ params }: CategoryPageProps): Metadata {
   };
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params }: CategoryPageProps) {
   const category = decodeURIComponent(params.category);
-  const posts = getPostsByCategory(category);
+  const posts = await getPostsByCategory(category);
 
   if (posts.length === 0) {
     notFound();

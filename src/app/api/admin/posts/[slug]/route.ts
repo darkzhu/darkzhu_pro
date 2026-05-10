@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const post = getEditablePost(params.slug);
+  const post = await getEditablePost(params.slug);
 
   if (!post) {
     return NextResponse.json({ message: "Post not found" }, { status: 404 });
@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
   }
 
   try {
-    return NextResponse.json({ post: saveEditablePost(input, params.slug) });
+    return NextResponse.json({ post: await saveEditablePost(input, params.slug) });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Failed to save post" }, { status: 400 });
   }
@@ -62,7 +62,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const deleted = deleteEditablePost(params.slug);
+  const deleted = await deleteEditablePost(params.slug);
 
   return NextResponse.json({ deleted });
 }

@@ -5,6 +5,6 @@ export const metadata = {
   title: "发布文章"
 };
 
-export default function AdminNewArticlePage() {
-  return <PostManager initialMode="new" initialPosts={getEditablePosts()} />;
+export default async function AdminNewArticlePage() {
+  return <PostManager initialMode="new" initialPosts={await getEditablePosts()} />;
 }

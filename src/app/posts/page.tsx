@@ -6,8 +6,8 @@ export const metadata = {
   title: "文章"
 };
 
-export default function PostsPage() {
-  const posts = getAllPosts();
+export default async function PostsPage() {
+  const posts = await getAllPosts();
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">

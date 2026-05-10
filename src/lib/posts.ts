@@ -1,8 +1,12 @@
+import "server-only";
+
 import fs from "node:fs";
 import path from "node:path";
 
 import matter from "gray-matter";
+import type { RowDataPacket } from "mysql2";
 
+import { db } from "@/lib/db";
 import { markdownToHtml } from "@/lib/markdown";
 import type { ArchiveGroup, Post, PostFrontmatter, PostSummary, TaxonomyItem } from "@/types/post";
 
@@ -10,23 +14,22 @@ export const postsDirectory = process.env.POSTS_DIR
   ? path.resolve(process.env.POSTS_DIR)
   : path.join(process.cwd(), "src", "content", "posts");
 
-let cachedSlugs: string[] | null = null;
-let cachedSummaries: PostSummary[] | null = null;
-let cachedTags: TaxonomyItem[] | null = null;
-let cachedCategories: TaxonomyItem[] | null = null;
-let cachedStats: { postCount: number; totalWords: number; lastUpdated: string } | null = null;
+type PostRow = RowDataPacket & {
+  slug: string;
+  title: string;
+  date: string;
+  description: string;
+  tags_json: string;
+  category: string;
+  draft: number;
+  cover: string | null;
+  content: string;
+};
+
+let cachedPosts: (PostSummary & { content: string })[] | null = null;
 
 export function resetPostCache() {
-  cachedSlugs = null;
-  cachedSummaries = null;
-  cachedTags = null;
-  cachedCategories = null;
-  cachedStats = null;
-}
-
-function readPostFile(slug: string) {
-  const fullPath = path.join(postsDirectory, `${slug}.md`);
-  return fs.readFileSync(fullPath, "utf8");
+  cachedPosts = null;
 }
 
 function getReadingTime(content: string) {
@@ -44,46 +47,104 @@ function countContentWords(content: string) {
   return words + cjkCharacters;
 }
 
-function getPostSummary(slug: string): PostSummary {
-  const fileContents = readPostFile(slug);
-  const { data, content } = matter(fileContents);
-  const frontmatter = data as PostFrontmatter;
+function parseTags(value: string) {
+  try {
+    const tags = JSON.parse(value);
+    return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
+function toPost(row: PostRow): PostSummary & { content: string } {
   return {
-    slug,
-    ...frontmatter,
-    readingTime: getReadingTime(content)
+    slug: row.slug,
+    title: row.title,
+    date: row.date,
+    description: row.description,
+    tags: parseTags(row.tags_json),
+    category: row.category,
+    draft: Boolean(row.draft),
+    cover: row.cover || undefined,
+    content: row.content,
+    readingTime: getReadingTime(row.content)
   };
 }
 
-export function getAllPostSlugs() {
-  if (cachedSlugs) {
-    return cachedSlugs;
-  }
-
+function readMarkdownPosts() {
   if (!fs.existsSync(postsDirectory)) {
     return [];
   }
 
-  cachedSlugs = fs
+  return fs
     .readdirSync(postsDirectory)
     .filter((file) => file.endsWith(".md"))
-    .map((file) => file.replace(/\.md$/, ""));
+    .map((file) => {
+      const slug = file.replace(/\.md$/, "");
+      const fileContents = fs.readFileSync(path.join(postsDirectory, file), "utf8");
+      const { data, content } = matter(fileContents);
+      const frontmatter = data as PostFrontmatter;
 
-  return cachedSlugs;
+      return {
+        slug,
+        title: frontmatter.title || "",
+        date: frontmatter.date || "",
+        description: frontmatter.description || "",
+        tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
+        category: frontmatter.category || "",
+        draft: Boolean(frontmatter.draft),
+        cover: frontmatter.cover,
+        content,
+        readingTime: getReadingTime(content)
+      };
+    });
 }
 
-export function getAllPosts() {
-  if (cachedSummaries) {
-    return cachedSummaries;
+async function ensureBlogPostsTable() {
+  await db.execute(
+    `CREATE TABLE IF NOT EXISTS blog_posts (
+      slug varchar(191) NOT NULL,
+      title varchar(191) NOT NULL,
+      date varchar(20) NOT NULL,
+      description text NOT NULL,
+      tags_json text NOT NULL,
+      category varchar(80) NOT NULL,
+      draft tinyint(1) NOT NULL DEFAULT 0,
+      cover varchar(500) DEFAULT NULL,
+      content longtext NOT NULL,
+      created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (slug),
+      KEY idx_blog_posts_date (date),
+      KEY idx_blog_posts_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+export async function getAllPostsIncludingDrafts() {
+  if (cachedPosts) {
+    return cachedPosts;
   }
 
-  cachedSummaries = getAllPostSlugs()
-    .map((slug) => getPostSummary(slug))
-    .filter((post) => !post.draft)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  await ensureBlogPostsTable();
+  const [rows] = await db.query<PostRow[]>(
+    "SELECT slug, title, date, description, tags_json, category, draft, cover, content FROM blog_posts ORDER BY date DESC, created_at DESC"
+  );
+  const dbPosts = rows.map(toPost);
+  const dbSlugs = new Set(dbPosts.map((post) => post.slug));
+  const markdownPosts = readMarkdownPosts().filter((post) => !dbSlugs.has(post.slug));
 
-  return cachedSummaries;
+  cachedPosts = [...dbPosts, ...markdownPosts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return cachedPosts;
+}
+
+export async function getAllPostSlugs() {
+  return (await getAllPostsIncludingDrafts()).map((post) => post.slug);
+}
+
+export async function getAllPosts() {
+  return (await getAllPostsIncludingDrafts()).filter((post) => !post.draft);
 }
 
 function toTaxonomyItems(values: string[]): TaxonomyItem[] {
@@ -97,49 +158,35 @@ function toTaxonomyItems(values: string[]): TaxonomyItem[] {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-export function getAllTags() {
-  cachedTags = cachedTags ?? toTaxonomyItems(getAllPosts().flatMap((post) => post.tags));
-  return cachedTags;
+export async function getAllTags() {
+  return toTaxonomyItems((await getAllPosts()).flatMap((post) => post.tags));
 }
 
-export function getAllCategories() {
-  cachedCategories = cachedCategories ?? toTaxonomyItems(getAllPosts().map((post) => post.category));
-  return cachedCategories;
+export async function getAllCategories() {
+  return toTaxonomyItems((await getAllPosts()).map((post) => post.category));
 }
 
-export function getSitePostStats() {
-  if (cachedStats) {
-    return cachedStats;
-  }
+export async function getSitePostStats() {
+  const allPosts = await getAllPostsIncludingDrafts();
+  const posts = allPosts.filter((post) => !post.draft);
 
-  const slugs = getAllPostSlugs();
-  const posts = getAllPosts();
-  const totalWords = slugs.reduce((total, slug) => {
-    const fileContents = readPostFile(slug);
-    const { content } = matter(fileContents);
-
-    return total + countContentWords(content);
-  }, 0);
-
-  cachedStats = {
+  return {
     postCount: posts.length,
-    totalWords,
+    totalWords: allPosts.reduce((total, post) => total + countContentWords(post.content), 0),
     lastUpdated: posts[0]?.date ?? ""
   };
-
-  return cachedStats;
 }
 
-export function getPostsByTag(tag: string) {
-  return getAllPosts().filter((post) => post.tags.includes(tag));
+export async function getPostsByTag(tag: string) {
+  return (await getAllPosts()).filter((post) => post.tags.includes(tag));
 }
 
-export function getPostsByCategory(category: string) {
-  return getAllPosts().filter((post) => post.category === category);
+export async function getPostsByCategory(category: string) {
+  return (await getAllPosts()).filter((post) => post.category === category);
 }
 
-export function getArchiveGroups(): ArchiveGroup[] {
-  const groups = getAllPosts().reduce<Record<string, PostSummary[]>>((acc, post) => {
+export async function getArchiveGroups(): Promise<ArchiveGroup[]> {
+  const groups = (await getAllPosts()).reduce<Record<string, PostSummary[]>>((acc, post) => {
     const year = post.date.slice(0, 4);
     acc[year] = acc[year] ?? [];
     acc[year].push(post);
@@ -151,8 +198,8 @@ export function getArchiveGroups(): ArchiveGroup[] {
     .sort((a, b) => Number(b.year) - Number(a.year));
 }
 
-export function getAdjacentPosts(slug: string) {
-  const posts = getAllPosts();
+export async function getAdjacentPosts(slug: string) {
+  const posts = await getAllPosts();
   const currentIndex = posts.findIndex((post) => post.slug === slug);
 
   return {
@@ -162,21 +209,14 @@ export function getAdjacentPosts(slug: string) {
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
-  const fullPath = path.join(postsDirectory, `${slug}.md`);
+  const post = (await getAllPostsIncludingDrafts()).find((item) => item.slug === slug);
 
-  if (!fs.existsSync(fullPath)) {
+  if (!post) {
     return null;
   }
 
-  const fileContents = readPostFile(slug);
-  const { data, content } = matter(fileContents);
-  const frontmatter = data as PostFrontmatter;
-  const contentHtml = await markdownToHtml(content);
-
   return {
-    slug,
-    contentHtml,
-    ...frontmatter,
-    readingTime: getReadingTime(content)
+    ...post,
+    contentHtml: await markdownToHtml(post.content)
   };
 }

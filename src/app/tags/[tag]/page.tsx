@@ -11,8 +11,8 @@ type TagPageProps = {
   };
 };
 
-export function generateStaticParams() {
-  return getAllTags().map((tag) => ({
+export async function generateStaticParams() {
+  return (await getAllTags()).map((tag) => ({
     tag: tag.name
   }));
 }
@@ -26,9 +26,9 @@ export function generateMetadata({ params }: TagPageProps): Metadata {
   };
 }
 
-export default function TagPage({ params }: TagPageProps) {
+export default async function TagPage({ params }: TagPageProps) {
   const tag = decodeURIComponent(params.tag);
-  const posts = getPostsByTag(tag);
+  const posts = await getPostsByTag(tag);
 
   if (posts.length === 0) {
     notFound();

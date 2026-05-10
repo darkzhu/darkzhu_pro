@@ -7,8 +7,8 @@ export const metadata = {
   title: "标签"
 };
 
-export default function TagsPage() {
-  const tags = getAllTags();
+export default async function TagsPage() {
+  const tags = await getAllTags();
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:py-20">

@@ -7,8 +7,8 @@ export const metadata = {
   title: "归档"
 };
 
-export default function ArchivePage() {
-  const groups = getArchiveGroups();
+export default async function ArchivePage() {
+  const groups = await getArchiveGroups();
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:py-20">

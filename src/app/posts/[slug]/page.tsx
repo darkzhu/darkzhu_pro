@@ -17,7 +17,7 @@ type PostPageProps = {
 };
 
 export async function generateStaticParams() {
-  return getAllPostSlugs().map((slug) => ({
+  return (await getAllPostSlugs()).map((slug) => ({
     slug
   }));
 }
@@ -64,7 +64,7 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  const adjacentPosts = getAdjacentPosts(post.slug);
+  const adjacentPosts = await getAdjacentPosts(post.slug);
   const cover = normalizeImageUrl(post.cover || siteConfig.defaultPostCover);
 
   return (

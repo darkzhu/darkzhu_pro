@@ -11,8 +11,8 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
-export function GET() {
-  const posts = getAllPosts();
+export async function GET() {
+  const posts = await getAllPosts();
   const latestPostDate = posts[0]?.date ? new Date(posts[0].date) : new Date();
 
   const items = posts

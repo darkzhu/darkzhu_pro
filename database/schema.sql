@@ -11,6 +11,23 @@ CREATE TABLE IF NOT EXISTS `post_likes` (
   PRIMARY KEY (`post_slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `blog_posts` (
+  `slug` varchar(191) NOT NULL,
+  `title` varchar(191) NOT NULL,
+  `date` varchar(20) NOT NULL,
+  `description` text NOT NULL,
+  `tags_json` text NOT NULL,
+  `category` varchar(80) NOT NULL,
+  `draft` tinyint(1) NOT NULL DEFAULT 0,
+  `cover` varchar(500) DEFAULT NULL,
+  `content` longtext NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`slug`),
+  KEY `idx_blog_posts_date` (`date`),
+  KEY `idx_blog_posts_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `post_comments` (
   `id` char(36) NOT NULL,
   `post_slug` varchar(191) NOT NULL,

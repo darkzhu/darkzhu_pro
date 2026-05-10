@@ -1,11 +1,9 @@
 import "server-only";
 
-import fs from "node:fs";
-import path from "node:path";
+import type { ResultSetHeader } from "mysql2";
 
-import matter from "gray-matter";
-
-import { postsDirectory, resetPostCache } from "@/lib/posts";
+import { db } from "@/lib/db";
+import { getAllPostsIncludingDrafts, resetPostCache } from "@/lib/posts";
 import type { PostFrontmatter } from "@/types/post";
 
 export type EditablePost = PostFrontmatter & {
@@ -25,10 +23,6 @@ export type PostInput = {
   content: string;
 };
 
-function ensurePostsDirectory() {
-  fs.mkdirSync(postsDirectory, { recursive: true });
-}
-
 export function normalizeSlug(value: string) {
   return value
     .trim()
@@ -38,59 +32,37 @@ export function normalizeSlug(value: string) {
     .replace(/^-|-$/g, "");
 }
 
-function getPostPath(slug: string) {
-  return path.join(postsDirectory, `${slug}.md`);
-}
-
 function assertSafeSlug(slug: string) {
   if (!slug || slug !== normalizeSlug(slug) || slug.includes("..") || slug.includes("/") || slug.includes("\\")) {
     throw new Error("Invalid post slug");
   }
 }
 
-function toEditablePost(slug: string): EditablePost {
-  const file = fs.readFileSync(getPostPath(slug), "utf8");
-  const { data, content } = matter(file);
-  const frontmatter = data as PostFrontmatter;
-
+function toEditablePost(post: Awaited<ReturnType<typeof getAllPostsIncludingDrafts>>[number]): EditablePost {
   return {
-    slug,
-    title: frontmatter.title || "",
-    date: frontmatter.date || "",
-    description: frontmatter.description || "",
-    tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
-    category: frontmatter.category || "",
-    draft: Boolean(frontmatter.draft),
-    cover: frontmatter.cover || "",
-    content
+    slug: post.slug,
+    title: post.title,
+    date: post.date,
+    description: post.description,
+    tags: post.tags,
+    category: post.category,
+    draft: Boolean(post.draft),
+    cover: post.cover || "",
+    content: post.content
   };
 }
 
-export function getEditablePosts() {
-  ensurePostsDirectory();
-
-  return fs
-    .readdirSync(postsDirectory)
-    .filter((file) => file.endsWith(".md"))
-    .map((file) => toEditablePost(file.replace(/\.md$/, "")))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export async function getEditablePosts() {
+  return (await getAllPostsIncludingDrafts()).map(toEditablePost);
 }
 
-export function getEditablePost(slug: string) {
+export async function getEditablePost(slug: string) {
   assertSafeSlug(slug);
 
-  const fullPath = getPostPath(slug);
-
-  if (!fs.existsSync(fullPath)) {
-    return null;
-  }
-
-  return toEditablePost(slug);
+  return (await getEditablePosts()).find((post) => post.slug === slug) ?? null;
 }
 
-export function saveEditablePost(input: PostInput, currentSlug?: string) {
-  ensurePostsDirectory();
-
+export async function saveEditablePost(input: PostInput, currentSlug?: string) {
   const slug = normalizeSlug(input.slug || input.title);
   const normalizedCurrentSlug = currentSlug ? normalizeSlug(currentSlug) : "";
 
@@ -100,51 +72,58 @@ export function saveEditablePost(input: PostInput, currentSlug?: string) {
     assertSafeSlug(normalizedCurrentSlug);
   }
 
-  const targetPath = getPostPath(slug);
-  const previousPath = normalizedCurrentSlug ? getPostPath(normalizedCurrentSlug) : "";
+  if (slug !== normalizedCurrentSlug) {
+    const existing = await getEditablePost(slug);
 
-  if (slug !== normalizedCurrentSlug && fs.existsSync(targetPath)) {
-    throw new Error("Post slug already exists");
+    if (existing) {
+      throw new Error("Post slug already exists");
+    }
   }
 
-  const frontmatter: PostFrontmatter = {
-    title: input.title.trim(),
-    date: input.date,
-    description: input.description.trim(),
-    tags: input.tags.map((tag) => tag.trim()).filter(Boolean),
-    category: input.category.trim(),
-    draft: Boolean(input.draft)
-  };
-  const cover = input.cover?.trim();
+  const title = input.title.trim();
+  const date = input.date;
+  const description = input.description.trim();
+  const tags = input.tags.map((tag) => tag.trim()).filter(Boolean);
+  const category = input.category.trim();
+  const draft = Boolean(input.draft);
+  const cover = input.cover?.trim() || null;
+  const content = input.content || "";
 
-  if (cover) {
-    frontmatter.cover = cover;
+  if (normalizedCurrentSlug && normalizedCurrentSlug !== slug) {
+    await db.execute("DELETE FROM blog_posts WHERE slug = ?", [normalizedCurrentSlug]);
   }
 
-  const file = matter.stringify(input.content || "", frontmatter);
-
-  fs.writeFileSync(targetPath, file, "utf8");
-
-  if (previousPath && previousPath !== targetPath && fs.existsSync(previousPath)) {
-    fs.unlinkSync(previousPath);
-  }
+  await db.execute(
+    `INSERT INTO blog_posts (slug, title, date, description, tags_json, category, draft, cover, content)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       title = VALUES(title),
+       date = VALUES(date),
+       description = VALUES(description),
+       tags_json = VALUES(tags_json),
+       category = VALUES(category),
+       draft = VALUES(draft),
+       cover = VALUES(cover),
+       content = VALUES(content)`,
+    [slug, title, date, description, JSON.stringify(tags), category, draft ? 1 : 0, cover, content]
+  );
 
   resetPostCache();
 
-  return toEditablePost(slug);
+  const saved = await getEditablePost(slug);
+
+  if (!saved) {
+    throw new Error("Failed to save post");
+  }
+
+  return saved;
 }
 
-export function deleteEditablePost(slug: string) {
+export async function deleteEditablePost(slug: string) {
   assertSafeSlug(slug);
 
-  const fullPath = getPostPath(slug);
-
-  if (!fs.existsSync(fullPath)) {
-    return false;
-  }
-
-  fs.unlinkSync(fullPath);
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM blog_posts WHERE slug = ?", [slug]);
   resetPostCache();
 
-  return true;
+  return result.affectedRows > 0;
 }

@@ -9,12 +9,12 @@ import { BlogSidebar } from "@/components/sidebar/blog-sidebar";
 import { siteConfig } from "@/config/site";
 import { getAllCategories, getAllPosts, getAllTags, getSitePostStats } from "@/lib/posts";
 
-export default function HomePage() {
-  const allPosts = getAllPosts();
+export default async function HomePage() {
+  const allPosts = await getAllPosts();
   const posts = allPosts.slice(0, 3);
-  const tags = getAllTags().slice(0, 8);
-  const categories = getAllCategories();
-  const stats = getSitePostStats();
+  const tags = (await getAllTags()).slice(0, 8);
+  const categories = await getAllCategories();
+  const stats = await getSitePostStats();
 
   return (
     <div className="pb-16 sm:pb-20">

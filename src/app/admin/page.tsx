@@ -7,10 +7,10 @@ export const metadata = {
   title: "后台首页"
 };
 
-export default function AdminHomePage() {
-  const posts = getEditablePosts();
-  const categories = getAllCategories();
-  const tags = getAllTags();
+export default async function AdminHomePage() {
+  const posts = await getEditablePosts();
+  const categories = await getAllCategories();
+  const tags = await getAllTags();
 
   const stats = [
     { label: "文章数量", value: posts.length },

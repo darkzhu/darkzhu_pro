@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.json({ posts: getEditablePosts() });
+  return NextResponse.json({ posts: await getEditablePosts() });
 }
 
 export async function POST(request: Request) {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json({ post: saveEditablePost(input) }, { status: 201 });
+    return NextResponse.json({ post: await saveEditablePost(input) }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Failed to save post" }, { status: 400 });
   }

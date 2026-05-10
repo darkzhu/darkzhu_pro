@@ -7,8 +7,8 @@ export const metadata = {
   title: "分类"
 };
 
-export default function CategoriesPage() {
-  const categories = getAllCategories();
+export default async function CategoriesPage() {
+  const categories = await getAllCategories();
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:py-20">
