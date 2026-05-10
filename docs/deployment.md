@@ -5,6 +5,7 @@
 Copy `.env.example` to the production environment and set real values. Do not commit production secrets.
 
 - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
+- `MYSQL_SSL=true` when your MySQL provider requires TLS, such as TiDB Cloud public endpoints
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD`
 - `AUTH_SECRET`
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
