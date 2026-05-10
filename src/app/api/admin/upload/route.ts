@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 import { envFlag } from "@/config/runtime";
@@ -61,6 +62,16 @@ export async function POST(request: Request) {
   const extension = getExtension(file);
   const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`uploads/${filename}`, bytes, {
+      access: "public",
+      contentType: file.type
+    });
+
+    return NextResponse.json({ url: blob.url });
+  }
+
   const targetPath = path.join(uploadDirectory, filename);
 
   await fs.writeFile(targetPath, bytes);

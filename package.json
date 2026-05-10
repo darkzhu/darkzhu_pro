@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.0",
+    "@vercel/blob": "^2.3.3",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
     "mysql2": "^3.22.3",

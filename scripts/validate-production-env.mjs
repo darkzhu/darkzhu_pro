@@ -12,7 +12,8 @@ const required = [
   "FRIEND_LINK_NOTIFY_EMAIL",
   "SMTP_HOST",
   "SMTP_USER",
-  "SMTP_PASS"
+  "SMTP_PASS",
+  "BLOB_READ_WRITE_TOKEN"
 ];
 
 const weakValues = new Set([
