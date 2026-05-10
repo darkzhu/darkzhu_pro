@@ -57,8 +57,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Upload file is too large" }, { status: 413 });
   }
 
-  await fs.mkdir(uploadDirectory, { recursive: true });
-
   const extension = getExtension(file);
   const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -71,6 +69,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: blob.url });
   }
+
+  await fs.mkdir(uploadDirectory, { recursive: true });
 
   const targetPath = path.join(uploadDirectory, filename);
 

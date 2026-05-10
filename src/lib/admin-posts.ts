@@ -113,9 +113,14 @@ export function saveEditablePost(input: PostInput, currentSlug?: string) {
     description: input.description.trim(),
     tags: input.tags.map((tag) => tag.trim()).filter(Boolean),
     category: input.category.trim(),
-    draft: Boolean(input.draft),
-    cover: input.cover?.trim() || undefined
+    draft: Boolean(input.draft)
   };
+  const cover = input.cover?.trim();
+
+  if (cover) {
+    frontmatter.cover = cover;
+  }
+
   const file = matter.stringify(input.content || "", frontmatter);
 
   fs.writeFileSync(targetPath, file, "utf8");
