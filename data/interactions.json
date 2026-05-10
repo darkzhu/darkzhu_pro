@@ -1,0 +1,43 @@
+{
+  "postLikes": {},
+  "postComments": {},
+  "guestbook": [
+    {
+      "id": "guestbook-seed-1",
+      "name": "站长",
+      "text": "欢迎来留言，今天也要开心。",
+      "likes": 8,
+      "createdAt": "2026-05-09T08:26:21.831Z"
+    },
+    {
+      "id": "guestbook-seed-2",
+      "name": "朋友",
+      "text": "博客越来越温柔了。",
+      "likes": 5,
+      "createdAt": "2026-05-09T08:26:21.831Z"
+    }
+  ],
+  "holes": [
+    {
+      "id": "hole-seed-1",
+      "text": "今天也要认真生活。",
+      "top": 18,
+      "duration": 16,
+      "createdAt": "2026-05-09T08:26:21.831Z"
+    },
+    {
+      "id": "hole-seed-2",
+      "text": "把小心事留在这里。",
+      "top": 46,
+      "duration": 20,
+      "createdAt": "2026-05-09T08:26:21.831Z"
+    },
+    {
+      "id": "hole-seed-3",
+      "text": "晚风会带走坏情绪。",
+      "top": 70,
+      "duration": 18,
+      "createdAt": "2026-05-09T08:26:21.831Z"
+    }
+  ]
+}
