@@ -3,6 +3,8 @@ import Link from "next/link";
 import { SectionTitle } from "@/components/layout/section-title";
 import { getAllTags } from "@/lib/posts";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "标签"
 };

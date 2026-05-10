@@ -2,6 +2,8 @@ import { SectionTitle } from "@/components/layout/section-title";
 import { HomePostPreview } from "@/components/posts/home-post-preview";
 import { getAllPosts } from "@/lib/posts";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "搜索文章"
 };

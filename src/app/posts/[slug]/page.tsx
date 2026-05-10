@@ -10,6 +10,8 @@ import { normalizeImageUrl } from "@/lib/image-url";
 import { getAllPostSlugs, getAdjacentPosts, getPostBySlug } from "@/lib/posts";
 import { absoluteUrl } from "@/lib/seo";
 
+export const dynamic = "force-dynamic";
+
 type PostPageProps = {
   params: {
     slug: string;

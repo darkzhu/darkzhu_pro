@@ -62,12 +62,21 @@ export async function POST(request: Request) {
   const bytes = Buffer.from(await file.arrayBuffer());
 
   if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(`uploads/${filename}`, bytes, {
-      access: "public",
-      contentType: file.type
-    });
+    try {
+      const blob = await put(`uploads/${filename}`, bytes, {
+        access: "public",
+        contentType: file.type
+      });
 
-    return NextResponse.json({ url: blob.url });
+      return NextResponse.json({ url: blob.url });
+    } catch (error) {
+      console.error(error);
+      return NextResponse.json({ message: "Failed to upload image to Vercel Blob" }, { status: 500 });
+    }
+  }
+
+  if (process.env.VERCEL) {
+    return NextResponse.json({ message: "BLOB_READ_WRITE_TOKEN is required for uploads on Vercel" }, { status: 500 });
   }
 
   await fs.mkdir(uploadDirectory, { recursive: true });

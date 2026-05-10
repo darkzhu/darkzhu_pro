@@ -5,6 +5,8 @@ import { SectionTitle } from "@/components/layout/section-title";
 import { PostCard } from "@/components/posts/post-card";
 import { getAllCategories, getPostsByCategory } from "@/lib/posts";
 
+export const dynamic = "force-dynamic";
+
 type CategoryPageProps = {
   params: {
     category: string;

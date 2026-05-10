@@ -2,6 +2,8 @@ import { SectionTitle } from "@/components/layout/section-title";
 import { PostCard } from "@/components/posts/post-card";
 import { getAllPosts } from "@/lib/posts";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "文章"
 };

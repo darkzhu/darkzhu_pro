@@ -9,6 +9,8 @@ import { BlogSidebar } from "@/components/sidebar/blog-sidebar";
 import { siteConfig } from "@/config/site";
 import { getAllCategories, getAllPosts, getAllTags, getSitePostStats } from "@/lib/posts";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const allPosts = await getAllPosts();
   const posts = allPosts.slice(0, 3);
